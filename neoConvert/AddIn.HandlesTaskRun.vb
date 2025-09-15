@@ -1,4 +1,5 @@
 ﻿Imports System.Reflection.Emit
+Imports BlueByte.SOLIDWORKS.Extensions
 Imports EPDM.Interop.epdm
 
 Partial Public Class AddIn
@@ -12,32 +13,7 @@ Partial Public Class AddIn
         Dim instance As IEdmTaskInstance = poCmd.mpoExtra
         Dim userMgr As IEdmUserMgr5 = vault
         Dim loggedInUser As IEdmUser5 = userMgr.GetLoggedInUser()
-        'only get the drawings
-        Dim drawings As New Dictionary(Of Tuple(Of IEdmFile5, IEdmFolder5), Tuple(Of IEdmFile5, IEdmFolder5))
 
-        For Each item As EdmCmdData In ppoData
-
-            Dim file As IEdmFile5 = vault.GetObject(EdmObjectType.EdmObject_File, item.mlObjectID1)
-            Dim folder As IEdmFolder5 = vault.GetObject(EdmObjectType.EdmObject_Folder, item.mlObjectID2)
-
-            If file.Name.ToLower().EndsWith(".slddrw") = False Then
-                Continue For
-            End If
-
-            Dim associatedModel = GetAssociatedDocument(file, folder)
-
-            If (associatedModel.Item1 Is Nothing) Then
-                Continue For
-            End If
-
-            drawings.Add(New Tuple(Of IEdmFile5, IEdmFolder5)(file, folder), New Tuple(Of IEdmFile5, IEdmFolder5)(associatedModel.Item1, associatedModel.Item2))
-
-        Next
-
-
-        If (drawings.Count = 0) Then
-            Throw New Exception("No found in the affected items by this task")
-        End If
 
 
         Dim extensionNames As String()
@@ -58,75 +34,132 @@ Partial Public Class AddIn
         errorLogs.Clear()
 
         Dim index As Integer = 0
-        Dim count As Integer = drawings.Count
+        Dim count As Integer = ppoData.Count
 
+
+        Dim solidworksInstanceManager = New SOLIDWORKSInstanceManager()
+
+        Dim Any = ppoData.ToList().Any(Function(x As EdmCmdData) x.mbsStrData1.ToLower().EndsWith(".sldprt"))
+
+        If Any = False Then
+            Throw New Exception("No parts selected. This task only processes parts.")
+        End If
+
+
+        Dim swApp = solidworksInstanceManager.GetNewInstance()
+
+        swApp.Visible = True
 
         instance.SetProgressRange(count, 0, String.Empty)
 
-        For Each item In drawings
+        For Each item In ppoData
 
             index = index + 1
 
             Try
-                Dim drawingFile As IEdmFile5 = item.Key.Item1
-                Dim drawingFolder As IEdmFolder5 = item.Key.Item2
-                Dim drawingAssociatedModelFile As IEdmFile5 = item.Value.Item1
-                Dim drawingAssociatedModelFolder As IEdmFolder5 = item.Value.Item2
+
+                Dim file As IEdmFile5 = vault.GetObject(EdmObjectType.EdmObject_File, item.mlObjectID1)
+
+                Dim folder As IEdmFolder5 = vault.GetObject(EdmObjectType.EdmObject_Folder, item.mlObjectID2)
 
                 HandleCancellationRequest(instance)
+
                 HandleSuspensionRequest(instance)
 
-                ReportProgress(instance, index, $"Processing {drawingFile.Name}")
+                ReportProgress(instance, index, $"Processing {file.Name}")
 
 
+                ' we are only going to process parts and convert them to step and dxf 
 
-                Dim poextensions As Dictionary(Of String, String) = New Dictionary(Of String, String)
+                If file.Name.ToLower().EndsWith(".sldprt") = False Then
+                    Continue For
+                End If
 
-                For Each extensionName In extensionNames
+                ' cache the part file 
 
-                    poextensions.Add(extensionName, Nothing)
+                file.GetFileCopy(handle)
 
+                Dim warnings As String() = Nothing
+                Dim errors As String() = Nothing
+                ' open solidworks and convert the file
+                Dim modelRet = swApp.OpenDocument(file.GetLocalPath(folder.ID), errors, warnings)
+
+                If modelRet.Item2 Is Nothing Then
+                    swApp.CloseAllDocuments(True)
+                    Continue For
+                End If
+
+                Dim model = modelRet.Item2
+
+                'save document 
+                For Each ext In extensionNames
+                    If String.IsNullOrWhiteSpace(ext) Then
+                        Continue For
+                    End If
+                    Try
+                        ' we could create a new folder with the extension name 
+                        Dim subFolder As IEdmFolder5 = Nothing
+                        Try
+                            subFolder = folder.GetSubFolder(ext.Trim("."))
+                        Catch ex As Exception
+                            'folder does not exist 
+                        End Try
+
+                        If subFolder Is Nothing Then
+                            folder.AddFolder(handle, ext.Trim("."))
+                            subFolder = folder.GetSubFolder(ext.Trim())
+                        End If
+
+                        Dim targetCompleteFileName As String
+
+                        Dim temporaryFileName As String
+
+                        targetCompleteFileName = $"{subFolder.LocalPath}\{System.IO.Path.ChangeExtension(file.Name, ext.Trim())}"
+
+                        temporaryFileName = $"{System.IO.Path.GetTempPath()}\{System.IO.Path.ChangeExtension(file.Name, ext.Trim())}"
+
+                        model.SaveAs3(temporaryFileName, 0, 0)
+
+                        'check if file already exists in vault
+                        Dim existingFile As IEdmFile5 = Nothing
+                        Try
+                            existingFile = vault.GetFileFromPath(targetCompleteFileName)
+                        Catch ex As Exception
+                            'file does not exist 
+                        End Try
+
+                        If existingFile IsNot Nothing Then
+                            'file exists, we need to delete it first 
+                            subFolder.DeleteFile(handle, existingFile.ID, True)
+                        End If
+
+
+                        'add the file to the vault
+                        Dim id As Integer = subFolder.AddFile(handle, temporaryFileName, True)
+
+                        Dim addedFile As IEdmFile5 = vault.GetObject(EdmObjectType.EdmObject_File, id)
+
+                        'check in the file
+                        addedFile.LockFile(handle, False, "Checked in by neoConvert")
+
+
+                    Catch ex As Exception
+                        errorLogs.AppendLine($"Error saving {file.Name} as {ext}: {ex.Message}")
+                    End Try
                 Next
 
 
-
-                Dim areThereAnyNonEmptyValues = poextensions.Values.Any(Function(x As String)
-                                                                           Return String.IsNullOrWhiteSpace(x) = False
-                                                                       End Function)
-                If areThereAnyNonEmptyValues = False Then
-                    Throw New Exception($"{drawingFile.Name}: No changes peformed.")
-                End If
-
-                ' check if we can check out the drawing
-                If drawingFile.IsLocked Then
-                    If drawingFile.LockedByUser.ID <> loggedInUser.ID Then
-                        Throw New Exception($"{drawingFile.Name}: File is locked by {drawingFile.LockedByUser.Name}")
-                    End If
-                End If
-
-                If drawingFile.IsLocked Then
-                    If drawingFile.LockedOnComputer <> Environment.MachineName Then
-                        Throw New Exception($"{drawingFile.Name}: File is locked on another computer {drawingFile.LockedOnComputer}")
-                    End If
-                End If
-
-                If drawingFile.IsLocked = False Then
-                    'locally cache the drawing and its references
-                    drawingFile.GetFileCopy(handle, Nothing, Nothing, EdmGetFlag.EdmGet_Refs + EdmGetFlag.EdmGet_RefsVerLatest)
-                    'check out drawing
-                    drawingFile.LockFile(drawingFolder.ID, handle)
-                End If
-
-
-                'commit changes
-                drawingFile.UnlockFile(handle, "Checked in by task")
-
             Catch ex As Exception
+
                 errorLogs.AppendLine(ex.Message)
+
             End Try
 
         Next
 
+
+        swApp.CloseAllDocuments(True)
+        swApp.ExitApp()
 
 
     End Sub
@@ -137,30 +170,7 @@ Partial Public Class AddIn
         instance.SetProgressPos(index, message)
     End Sub
 
-    Private Function GetAssociatedDocument(ByRef drawing As IEdmFile5, ByRef drawingFolder As IEdmFolder5) As Tuple(Of IEdmFile5, IEdmFolder5)
 
-        Dim vault As IEdmVault5 = drawing.Vault
-
-        Dim associatedModel As IEdmFile5 = Nothing
-        Dim associatedModelFolder As IEdmFolder5 = Nothing
-
-        Dim affectedDocumentRootReference As IEdmReference5 = drawing.GetReferenceTree(drawingFolder.ID)
-
-        Dim position As IEdmPos5 = affectedDocumentRootReference.GetFirstChildPosition(ADDIN_NAME, True, False)
-
-        Dim firstReference As IEdmReference5 = affectedDocumentRootReference.GetNextChild(position)
-
-        If firstReference Is Nothing Then
-            Return New Tuple(Of IEdmFile5, IEdmFolder5)(Nothing, Nothing)
-        End If
-
-        associatedModel = vault.GetObject(EdmObjectType.EdmObject_File, firstReference.FileID)
-
-        associatedModelFolder = vault.GetObject(EdmObjectType.EdmObject_Folder, firstReference.FolderID)
-
-        Return New Tuple(Of IEdmFile5, IEdmFolder5)(associatedModel, associatedModelFolder)
-
-    End Function
 
     Private Sub HandleCancellationRequest(ByRef instance As IEdmTaskInstance)
         If instance.GetStatus() = EdmTaskStatus.EdmTaskStat_CancelPending Then

@@ -33,7 +33,7 @@ Partial Public Class AddIn
         currentSetupPage.LoadData(poCmd)
 
         Dim pages(0) As EdmTaskSetupPage
-        pages(0).mbsPageName = "extensions"
+        pages(0).mbsPageName = "Extensions"
         pages(0).mlPageHwnd = currentSetupPage.Handle.ToInt32
         pages(0).mpoPageImpl = currentSetupPage
 

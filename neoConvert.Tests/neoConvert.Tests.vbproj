@@ -4,31 +4,35 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{31855446-5499-4CC2-B5FF-2FEFD08861B9}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <RootNamespace>neoConvert</RootNamespace>
-    <AssemblyName>neoConvert</AssemblyName>
+    <ProjectGuid>{E7D72A83-D2DF-40BB-9ADC-865FD394EC33}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <StartupObject>neoConvert.Tests.Tests</StartupObject>
+    <RootNamespace>neoConvert.Tests</RootNamespace>
+    <AssemblyName>neoConvert.Tests</AssemblyName>
     <FileAlignment>512</FileAlignment>
-    <MyType>Windows</MyType>
+    <MyType>Console</MyType>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <DefineDebug>true</DefineDebug>
     <DefineTrace>true</DefineTrace>
     <OutputPath>bin\Debug\</OutputPath>
-    <DocumentationFile>neoConvert.xml</DocumentationFile>
+    <DocumentationFile>neoConvert.Tests.xml</DocumentationFile>
     <NoWarn>42016,41999,42017,42018,42019,42032,42036,42020,42021,42022</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <DefineDebug>false</DefineDebug>
     <DefineTrace>true</DefineTrace>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DocumentationFile>neoConvert.xml</DocumentationFile>
+    <DocumentationFile>neoConvert.Tests.xml</DocumentationFile>
     <NoWarn>42016,41999,42017,42018,42019,42032,42036,42020,42021,42022</NoWarn>
   </PropertyGroup>
   <PropertyGroup>
@@ -48,11 +52,11 @@
       <HintPath>..\packages\BlueByte.SOLIDWORKS.Extensions.2021.44.0\lib\net472\BlueByte.SOLIDWORKS.Extensions.dll</HintPath>
     </Reference>
     <Reference Include="EPDM.Interop.epdm, Version=5.27.0.0, Culture=neutral, PublicKeyToken=0625a0c4bb5de148, processorArchitecture=MSIL">
-      <HintPath>..\packages\BlueByte.SOLIDWORKS.PDMProfessional.Interops.2024.5.50\lib\Garrett files\EPDM.Interop.epdm.dll</HintPath>
+      <HintPath>..\packages\BlueByte.SOLIDWORKS.PDMProfessional.Interops.2024.5.50\lib\EPDM.Interop.epdm.dll</HintPath>
       <EmbedInteropTypes>False</EmbedInteropTypes>
     </Reference>
     <Reference Include="EPDM.Interop.EPDMResultCode, Version=1.0.0.0, Culture=neutral, PublicKeyToken=0625a0c4bb5de148, processorArchitecture=MSIL">
-      <HintPath>..\packages\BlueByte.SOLIDWORKS.PDMProfessional.Interops.2024.5.50\lib\Garrett files\EPDM.Interop.EPDMResultCode.dll</HintPath>
+      <HintPath>..\packages\BlueByte.SOLIDWORKS.PDMProfessional.Interops.2024.5.50\lib\EPDM.Interop.EPDMResultCode.dll</HintPath>
       <EmbedInteropTypes>False</EmbedInteropTypes>
     </Reference>
     <Reference Include="SolidWorks.Interop.sldworks, Version=29.1.0.61, Culture=neutral, PublicKeyToken=7c4797c3e4eeac03, processorArchitecture=MSIL">
@@ -73,8 +77,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Deployment" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -93,13 +96,6 @@
     <Import Include="System.Threading.Tasks" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AddIn.HandlesTaskLaunch.vb" />
-    <Compile Include="AddIn.HandlesTaskRun.vb" />
-    <Compile Include="AddIn.HandlesTaskSetup.vb" />
-    <Compile Include="AddIn.HandlesTaskSetupButton.vb" />
-    <Compile Include="AddIn.Helper.vb" />
-    <Compile Include="AddIn.vb" />
-    <Compile Include="CancellationException.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>
@@ -115,12 +111,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <Compile Include="Pages\SetupPage.Designer.vb">
-      <DependentUpon>SetupPage.vb</DependentUpon>
-    </Compile>
-    <Compile Include="Pages\SetupPage.vb">
-      <SubType>UserControl</SubType>
-    </Compile>
+    <Compile Include="Tests.vb" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="My Project\Resources.resx">
@@ -128,9 +119,6 @@
       <LastGenOutput>Resources.Designer.vb</LastGenOutput>
       <CustomToolNamespace>My.Resources</CustomToolNamespace>
       <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Pages\SetupPage.resx">
-      <DependentUpon>SetupPage.vb</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
@@ -143,10 +131,14 @@
       <CustomToolNamespace>My</CustomToolNamespace>
       <LastGenOutput>Settings.Designer.vb</LastGenOutput>
     </None>
+    <None Include="App.config" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Service Include="{94E38DFF-614B-4CBD-B67C-F211BB35CE8B}" />
+    <ProjectReference Include="..\neoConvert\neoConvert.vbproj">
+      <Project>{31855446-5499-4cc2-b5ff-2fefd08861b9}</Project>
+      <Name>neoConvert</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
 </Project>
