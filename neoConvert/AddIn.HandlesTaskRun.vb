@@ -46,7 +46,7 @@ Partial Public Class AddIn
         End If
 
 
-        Dim swApp = solidworksInstanceManager.GetNewInstance()
+        Dim swApp = solidworksInstanceManager.GetNewInstance("/r/b", SOLIDWORKSInstanceManager.Year_e.Year2023)
 
         swApp.Visible = True
 
@@ -106,7 +106,7 @@ Partial Public Class AddIn
                         End Try
 
                         If subFolder Is Nothing Then
-                            folder.AddFolder(handle, ext.Trim("."))
+                            folder.CreateFolderPath(handle, ext.Trim("."))
                             subFolder = folder.GetSubFolder(ext.Trim())
                         End If
 
@@ -140,7 +140,7 @@ Partial Public Class AddIn
                         Dim addedFile As IEdmFile5 = vault.GetObject(EdmObjectType.EdmObject_File, id)
 
                         'check in the file
-                        addedFile.LockFile(handle, False, "Checked in by neoConvert")
+                        addedFile.LockFile(subFolder.ID, handle, "Checked in by neoConvert")
 
 
                     Catch ex As Exception

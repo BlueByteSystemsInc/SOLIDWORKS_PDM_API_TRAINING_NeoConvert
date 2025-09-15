@@ -11,7 +11,7 @@ Module Tests
         Vault.LoginAuto("Assemblageddon", 0)
         Dim Folder As IEdmFolder5
 
-        Dim File As IEdmFile5 = Vault.GetFileFromPath("C:\Assemblageddon\Speaker\Speaker.sldasm", Folder)
+        Dim File As IEdmFile5 = Vault.GetFileFromPath("C:\Assemblageddon\Speaker\membrane.sldprt", Folder)
 
         Dim poCmd As New EdmCmd
 
